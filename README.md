@@ -1,82 +1,82 @@
 # CASCADE API (EC2)
 
-This folder is the whole backend: Express, SQL schema, and systemd unit.
+This folder is the whole backend. Your instance is likely **Ubuntu** (`ubuntu` user, `apt`), not Amazon Linux (`ec2-user`, `dnf`). Use the SSH username that actually works.
 
-## On your PC
-
-```powershell
-cd backend
-# edit .env from .env.example — never commit .env
-```
-
-## Copy to EC2 (first time)
-
-Do **not** copy `node_modules` from Windows. Install on Amazon Linux instead.
+## 1. On your Windows PC (cascade project root)
 
 ```powershell
-# from the cascade project root
 tar --exclude=node_modules --exclude=.env -czf backend.tgz backend
-scp -i "$HOME\Downloads\your-key.pem" backend.tgz ec2-user@YOUR_EC2_PUBLIC_IP:~/
+scp -i "$HOME\Downloads\your-key.pem" backend.tgz ubuntu@YOUR_EC2_PUBLIC_IP:~/
+scp -i "$HOME\Downloads\your-key.pem" backend/setup-ec2.sh ubuntu@YOUR_EC2_PUBLIC_IP:~/
 ```
 
-On the instance:
+If SSH is `ec2-user@...`, use that instead of `ubuntu`. The tarball must land in **that user's home** (`ls ~` should show `backend.tgz`).
+
+## 2. On the instance (one script)
 
 ```bash
-tar -xzf backend.tgz
-# results in ~/backend
+cd ~
+ls -la
+# you must see backend.tgz here before continuing
+
+chmod +x setup-ec2.sh
+./setup-ec2.sh
 ```
 
-```bash
-git clone YOUR_REPO_URL
-mv cascade/backend ~/backend
-# or clone and: cd cascade && git pull
-```
+That installs Node 20, extracts `~/backend`, runs `npm install`, and writes the systemd unit for **your** user.
 
-## On EC2
+Then:
 
 ```bash
+nano ~/backend/.env
 cd ~/backend
-cp .env.example .env
-nano .env
-npm install --omit=dev
 npm run db:init
-sudo cp deploy/cascade-api.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now cascade-api
-sudo systemctl status cascade-api
+bash deploy/install-service.sh
 curl -s http://127.0.0.1:4000/api/health
 ```
 
-## Pull updates later
+`db:init` creates the `cascade` database on RDS if it does not exist, then applies tables.
 
-From your PC (if you scp). Recreate the tarball without `node_modules`, then:
+Do **not** copy `deploy/cascade-api.service` as-is. That file assumes `ec2-user` and `/home/ec2-user/backend`. `install-service.sh` writes a unit for **your** user and **this** directory (for example `/home/ubuntu/backend/pushnhold`).
 
-```powershell
-scp -i "$HOME\Downloads\your-key.pem" backend.tgz ec2-user@YOUR_EC2_PUBLIC_IP:~/
+## If you already SSHed in and tar failed
+
+You ran `tar` in a folder that does not contain `backend.tgz`. Fix:
+
+```bash
+pwd
+ls -la ~
+ls -la ~/backend.tgz
 ```
+
+If the file is missing, scp it again (step 1), then:
+
+```bash
+cd ~
+tar -tzf backend.tgz | head
+tar -xzf backend.tgz
+ls ~/backend/package.json
+```
+
+Do **not** run `sudo apt install npm` (old Node). The setup script uses Node 20.
+
+## Manual Node install (Ubuntu only)
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+node -v
+npm -v
+```
+
+## Later updates
+
+Recreate `backend.tgz` on Windows, scp to `~/`, then:
 
 ```bash
 cd ~
 tar -xzf backend.tgz
 cd ~/backend
 npm install --omit=dev
-sudo systemctl restart cascade-api
-```
-
-If the instance clones this repo:
-
-```bash
-cd ~/cascade
-git pull
-cd backend
-npm install --omit=dev
-sudo systemctl restart cascade-api
-```
-
-If systemd still points at the old `server` path, copy the unit again:
-
-```bash
-sudo cp ~/backend/deploy/cascade-api.service /etc/systemd/system/
-sudo systemctl daemon-reload
 sudo systemctl restart cascade-api
 ```

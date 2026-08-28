@@ -2,7 +2,7 @@ import 'dotenv/config'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { pool } from './db.js'
+import { ensureDatabaseExists, pool } from './db.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const schemaPath = path.join(__dirname, '../db/schema.sql')
@@ -12,6 +12,7 @@ async function migrate() {
     console.error('DATABASE_URL is required')
     process.exit(1)
   }
+  await ensureDatabaseExists(process.env.DATABASE_URL)
   const sql = fs.readFileSync(schemaPath, 'utf8')
   await pool.query(sql)
   console.log('Schema applied successfully')

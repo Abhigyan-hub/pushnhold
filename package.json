@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
-    "db:init": "node src/migrate.js"
+    "db:init": "node src/migrate.js",
+    "service:install": "bash deploy/install-service.sh"
   },
   "engines": {
     "node": ">=20"
