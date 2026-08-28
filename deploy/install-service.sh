@@ -16,6 +16,8 @@ if [[ ! -f "${APP_DIR}/.env" ]]; then
   exit 1
 fi
 
+# Do not use systemd EnvironmentFile: it treats # in passwords as comments
+# and breaks DATABASE_URL. Node loads .env via dotenv from WorkingDirectory.
 sudo tee /etc/systemd/system/cascade-api.service >/dev/null <<EOF
 [Unit]
 Description=CASCADE Express API
@@ -25,18 +27,23 @@ After=network.target
 Type=simple
 User=${USER_NAME}
 WorkingDirectory=${APP_DIR}
-EnvironmentFile=${APP_DIR}/.env
+Environment=NODE_ENV=production
 ExecStart=${NODE_BIN} src/index.js
-Restart=on-failure
-RestartSec=5
+Restart=always
+RestartSec=3
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
 sudo systemctl daemon-reload
+sudo systemctl reset-failed cascade-api.service || true
 sudo systemctl enable --now cascade-api
+sleep 2
 sudo systemctl --no-pager --full status cascade-api
+echo
+echo "--- recent logs ---"
+journalctl -u cascade-api -n 30 --no-pager
 echo
 curl -sS http://127.0.0.1:4000/api/health || true
 echo

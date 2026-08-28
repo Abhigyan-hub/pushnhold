@@ -61,4 +61,7 @@ app.use((err, _req, res, _next) => {
 
 app.listen(config.port, config.host, () => {
   console.log(`CASCADE API listening on ${config.host}:${config.port}`)
+}).on('error', (err) => {
+  console.error('Failed to listen:', err)
+  process.exit(1)
 })
