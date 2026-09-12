@@ -7,6 +7,8 @@
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
     "db:init": "node src/migrate.js",
+    "user:create": "node scripts/create-user.js",
+    "mail:test": "node scripts/send-test-email.js",
     "service:install": "bash deploy/install-service.sh"
   },
   "engines": {
@@ -21,6 +23,7 @@
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.2.0",
+    "nodemailer": "^9.0.6",
     "pg": "^8.23.0",
     "razorpay": "^2.9.8"
   }

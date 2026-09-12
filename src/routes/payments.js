@@ -26,9 +26,9 @@ function verifySignature(orderId, paymentId, signature, secret) {
 }
 
 router.post('/create-order', requireAuth, async (req, res) => {
-  const { registration_id, amount, currency = 'INR' } = req.body || {}
-  if (!registration_id || !amount || amount < 100) {
-    return res.status(400).json({ message: 'Invalid registration_id or amount (min ₹1)' })
+  const { registration_id, currency = 'INR' } = req.body || {}
+  if (!registration_id) {
+    return res.status(400).json({ message: 'registration_id is required' })
   }
 
   const razorpay = getRazorpay()
@@ -40,22 +40,37 @@ router.post('/create-order', requireAuth, async (req, res) => {
 
   try {
     const { rows: regs } = await query(
-      'SELECT * FROM registrations WHERE id = $1 AND user_id = $2',
+      `SELECT r.*, e.fee_amount
+       FROM registrations r
+       JOIN events e ON e.id = r.event_id
+       WHERE r.id = $1 AND r.user_id = $2`,
       [registration_id, req.user.id]
     )
-    if (!regs[0]) {
+    const registration = regs[0]
+    if (!registration) {
       return res.status(404).json({ message: 'Registration not found' })
     }
+    if (registration.status === 'rejected') {
+      return res.status(400).json({ message: 'This registration was rejected. Payment is not allowed.' })
+    }
+    if (!registration.fee_amount || registration.fee_amount < 100) {
+      return res.status(400).json({ message: 'This event is free or the fee is below Razorpay’s ₹1 minimum.' })
+    }
 
-    const { rows } = await query(
+    let { rows } = await query(
       `SELECT * FROM payments
        WHERE registration_id = $1 AND status = 'pending'
        ORDER BY created_at DESC LIMIT 1`,
       [registration_id]
     )
-    const payment = rows[0]
+    let payment = rows[0]
     if (!payment) {
-      return res.status(400).json({ message: 'No pending payment found for this registration' })
+      const inserted = await query(
+        `INSERT INTO payments (registration_id, amount_paise, status)
+         VALUES ($1, $2, 'pending') RETURNING *`,
+        [registration_id, registration.fee_amount]
+      )
+      payment = inserted.rows[0]
     }
 
     if (payment.razorpay_order_id) {
@@ -67,7 +82,7 @@ router.post('/create-order', requireAuth, async (req, res) => {
     }
 
     const order = await razorpay.orders.create({
-      amount: Math.round(amount),
+      amount: Math.round(payment.amount_paise),
       currency,
       receipt: `reg_${registration_id}`.slice(0, 40),
       notes: { registration_id },
@@ -85,11 +100,11 @@ router.post('/create-order', requireAuth, async (req, res) => {
     })
   } catch (error) {
     console.error('Razorpay order creation error:', error)
-    let errorMessage = 'Failed to create payment order'
-    if (error.message?.includes('Invalid key') || error.message?.includes('authentication')) {
-      errorMessage = 'Invalid Razorpay API keys.'
-    } else if (error.message) {
-      errorMessage = error.message
+    const raw = error.error?.description || error.message || 'Failed to create payment order'
+    let errorMessage = raw
+    if (String(raw).toLowerCase().includes('authentication') || String(raw).includes('Invalid key')) {
+      errorMessage =
+        'Invalid Razorpay API keys on the server. RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET must be a matching test or live pair.'
     }
     res.status(500).json({ message: errorMessage })
   }

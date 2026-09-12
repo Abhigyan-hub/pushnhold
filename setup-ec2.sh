@@ -93,19 +93,20 @@ extract_backend() {
 write_systemd_unit() {
   local node_bin
   node_bin="$(command -v node)"
+  # Do not use EnvironmentFile: systemd treats # in DATABASE_URL as a comment.
   sudo tee /etc/systemd/system/cascade-api.service >/dev/null <<EOF
 [Unit]
 Description=CASCADE Express API
-After=network.target
+After=network.target postgresql.service
 
 [Service]
 Type=simple
 User=${USER_NAME}
 WorkingDirectory=${APP_DIR}
-EnvironmentFile=${APP_DIR}/.env
+Environment=NODE_ENV=production
 ExecStart=${node_bin} src/index.js
-Restart=on-failure
-RestartSec=5
+Restart=always
+RestartSec=3
 
 [Install]
 WantedBy=multi-user.target

@@ -2,6 +2,8 @@ import bcrypt from 'bcryptjs'
 import { Router } from 'express'
 import { query } from '../db.js'
 import { publicUser, signToken, requireAuth } from '../middleware/auth.js'
+import { config } from '../config.js'
+import { sendWelcomeEmail } from '../mailer.js'
 
 const router = Router()
 
@@ -15,6 +17,12 @@ router.post('/signup', async (req, res) => {
   }
 
   try {
+    if (!config.databaseUrl) {
+      return res.status(500).json({ message: 'DATABASE_URL is not set on the server' })
+    }
+    if (!config.jwtSecret) {
+      return res.status(500).json({ message: 'JWT_SECRET is not set on the server' })
+    }
     const existing = await query('SELECT id FROM users WHERE lower(email) = lower($1)', [email])
     if (existing.rows[0]) {
       return res.status(409).json({ message: 'An account with this email already exists' })
@@ -28,10 +36,19 @@ router.post('/signup', async (req, res) => {
     )
     const user = rows[0]
     const token = signToken(user)
+    sendWelcomeEmail(user).catch((err) => console.error('welcome email', err))
     res.status(201).json({ token, user: publicUser(user), profile: publicUser(user) })
   } catch (err) {
     console.error('signup', err)
-    res.status(500).json({ message: 'Sign up failed' })
+    const message =
+      err.code === '42P01'
+        ? 'Database tables are missing. SSH to EC2 and run: cd ~/backend/pushnhold && npm run db:init'
+        : err.code === '28P01' || err.code === '28000'
+          ? 'Database login failed. Check DATABASE_URL user and password.'
+          : err.message?.includes('secretOrPrivateKey')
+            ? 'JWT_SECRET is not set on the server'
+            : err.message || 'Sign up failed'
+    res.status(500).json({ message })
   }
 })
 

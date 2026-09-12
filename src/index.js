@@ -1,4 +1,3 @@
-import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
@@ -9,17 +8,21 @@ import registrationRoutes from './routes/registrations.js'
 import paymentRoutes, { handleWebhook } from './routes/payments.js'
 import developerRoutes from './routes/developer.js'
 
-if (!config.jwtSecret) {
-  console.warn('JWT_SECRET is not set')
-}
-
 const app = express()
 
 app.use(helmet())
-const allowedOrigins = config.frontendOrigin
-  .split(',')
-  .map((s) => s.trim())
-  .filter(Boolean)
+const defaultAllowedOrigins = [
+  'https://cascade.mozartdev.in',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+]
+const allowedOrigins = [
+  ...new Set(
+    [...defaultAllowedOrigins, ...config.frontendOrigin.split(',')]
+      .map((s) => s.trim())
+      .filter(Boolean)
+  ),
+]
 
 app.use(
   cors({
@@ -28,7 +31,16 @@ app.use(
         callback(null, true)
         return
       }
-      callback(new Error(`CORS blocked origin: ${origin}`))
+      try {
+        const host = new URL(origin).hostname
+        if (host === 'cascade.mozartdev.in') {
+          callback(null, true)
+          return
+        }
+      } catch {
+        // ignore invalid origin
+      }
+      callback(null, false)
     },
     credentials: true,
   })
@@ -43,6 +55,14 @@ app.post(
 )
 
 app.use(express.json({ limit: '2mb' }))
+
+app.get('/', (_req, res) => {
+  res.json({
+    ok: true,
+    service: 'CASCADE API',
+    health: '/api/health',
+  })
+})
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true })

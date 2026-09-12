@@ -21,7 +21,7 @@ fi
 sudo tee /etc/systemd/system/cascade-api.service >/dev/null <<EOF
 [Unit]
 Description=CASCADE Express API
-After=network.target
+After=network.target postgresql.service
 
 [Service]
 Type=simple

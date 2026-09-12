@@ -7,8 +7,16 @@ if (!config.databaseUrl) {
   console.warn('DATABASE_URL is not set')
 }
 
-export function pgSsl() {
-  return process.env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false }
+export function pgSsl(databaseUrl = config.databaseUrl) {
+  if (process.env.DATABASE_SSL === 'false') return false
+  if (process.env.DATABASE_SSL === 'true') return { rejectUnauthorized: false }
+  try {
+    const host = new URL(databaseUrl || 'postgres://x@127.0.0.1/x').hostname
+    if (host === '127.0.0.1' || host === 'localhost') return false
+  } catch {
+    return false
+  }
+  return { rejectUnauthorized: false }
 }
 
 export function maintenanceDatabaseUrl(databaseUrl) {
@@ -30,7 +38,7 @@ export async function ensureDatabaseExists(databaseUrl) {
 
   const client = new Client({
     connectionString: maintenanceDatabaseUrl(databaseUrl),
-    ssl: pgSsl(),
+    ssl: pgSsl(databaseUrl),
   })
   await client.connect()
   try {
