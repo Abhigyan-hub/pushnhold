@@ -4,18 +4,21 @@ import dotenv from 'dotenv'
 
 const backendRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
 const envPath = path.join(backendRoot, '.env')
-const envResult = dotenv.config({ path: envPath })
+const envResult = dotenv.config({ path: envPath, override: true, quiet: true })
 
 if (envResult.error && envResult.error.code === 'ENOENT') {
   console.warn(`No .env file at ${envPath}`)
-  console.warn('Copy backend/.env.example to backend/.env and fill DATABASE_URL and JWT_SECRET.')
+  console.warn('Create .env next to package.json (this folder) with DATABASE_URL and JWT_SECRET.')
+} else {
+  const loaded = envResult.parsed ? Object.keys(envResult.parsed).length : 0
+  console.log(`Env file ${envPath} (${loaded} keys)`)
 }
 
 export const config = {
   port: Number(process.env.PORT || 4000),
   host: process.env.HOST || '0.0.0.0',
   databaseUrl: process.env.DATABASE_URL,
-  jwtSecret: process.env.JWT_SECRET,
+  jwtSecret: String(process.env.JWT_SECRET || '').trim(),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
   frontendOrigin:
     process.env.FRONTEND_ORIGIN ||
