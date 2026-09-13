@@ -35,7 +35,7 @@ bash deploy/install-service.sh
 curl -s http://127.0.0.1:4000/api/health
 ```
 
-`db:init` creates the `cascade` database on RDS if it does not exist, then applies tables.
+`db:init` creates the `cascade` database if it does not exist (on the URL in `.env`, usually local Postgres), then applies tables.
 
 Do **not** copy `deploy/cascade-api.service` as-is. That file assumes `ec2-user` and `/home/ec2-user/backend`. `install-service.sh` writes a unit for **your** user and **this** directory (for example `/home/ubuntu/backend/pushnhold`).
 
@@ -80,3 +80,24 @@ cd ~/backend
 npm install --omit=dev
 sudo systemctl restart cascade-api
 ```
+
+## S3 IAM (event images)
+
+Uploads go through the API (`events/<id>/...` keys). Attach an instance role instead of access keys.
+
+1. IAM → Roles → EC2 → name `cascade-ec2-s3`. Inline policy: [`deploy/s3-instance-policy.json`](deploy/s3-instance-policy.json) (replace `YOUR_BUCKET`).
+2. EC2 → instance → Actions → Security → Modify IAM role → `cascade-ec2-s3`.
+3. Bucket policy for public posters: [`deploy/s3-bucket-public-read.json`](deploy/s3-bucket-public-read.json).
+4. In `.env`: `AWS_REGION` (same as the bucket) and `S3_BUCKET=YOUR_BUCKET`. Do not set `AWS_ACCESS_KEY_ID` when using the role.
+5. `sudo systemctl restart cascade-api`
+
+## Resend SMTP (verification mail)
+
+The API key **is** the SMTP password. Username in code is the word `resend`.
+
+1. [resend.com/api-keys](https://resend.com/api-keys) → Create API Key → **Sending access** → copy `re_...` once.
+2. Domains → verify `mozartdev.in` (DNS SPF/DKIM). Until then `MAIL_FROM` with `beth.t@example.com` only reaches your Resend login email.
+3. `.env`: `RESEND_API_KEY`, `MAIL_FROM=CASCADE <noreply@mozartdev.in>`, `SMTP_HOST=smtp.resend.com`, `SMTP_PORT=465`.
+4. Restart and test: `node scripts/send-test-email.js you@inbox.com`
+
+`beth.t@example.com` is a shared Resend domain and often lands in **spam**. After DNS is Verified, set `MAIL_FROM=CASCADE <noreply@mozartdev.in>` and restart. Mark the first real message as Not spam so Gmail learns.

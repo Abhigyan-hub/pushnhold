@@ -26,6 +26,9 @@ export const config = {
       .map((s) => s.trim())
       .find((s) => s.startsWith('https://')) || 'https://cascade.mozartdev.in'
   ).replace(/\/$/, ''),
+  frontendOrigin:
+    process.env.FRONTEND_ORIGIN ||
+    'https://cascade.mozartdev.in,http://localhost:5173,http://127.0.0.1:5173',
   razorpayKeyId: process.env.RAZORPAY_KEY_ID,
   razorpayKeySecret: process.env.RAZORPAY_KEY_SECRET,
   razorpayWebhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET,
@@ -36,6 +39,7 @@ export const config = {
   awsSecretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
   resendApiKey: process.env.RESEND_API_KEY || '',
   mailFrom: process.env.MAIL_FROM || '',
+  mailReplyTo: process.env.MAIL_REPLY_TO || '',
   smtpHost: process.env.SMTP_HOST || 'smtp.resend.com',
   smtpPort: Number(process.env.SMTP_PORT || 465),
 }
@@ -45,4 +49,7 @@ if (!config.databaseUrl) {
 }
 if (!config.jwtSecret) {
   console.warn('JWT_SECRET is not set')
+}
+if (config.mailFrom.includes('resend.dev')) {
+  console.warn('MAIL_FROM uses resend.dev — those messages often land in spam. Verify mozartdev.in in Resend and use noreply@mozartdev.in')
 }

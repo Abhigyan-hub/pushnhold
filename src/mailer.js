@@ -35,18 +35,38 @@ export async function sendMail({ to, subject, text, html }) {
     subject,
     text,
     html,
+    replyTo: config.mailReplyTo || undefined,
+    headers: {
+      'X-Entity-Ref-ID': `cascade-${Date.now()}`,
+      'List-Unsubscribe': `<${config.frontendPublicUrl}/privacy>`,
+      'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+    },
   })
   return { skipped: false, id: info.messageId }
 }
 
 export async function sendVerificationEmail(user, verifyUrl) {
-  const text = `Hi ${user.full_name},\n\nConfirm this email for CASCADE Events:\n${verifyUrl}\n\nThis link expires in 24 hours. If you did not sign up, ignore this message.\n\n— CASCADE Events`
+  const text = `Hi ${user.full_name},
+
+Confirm your CASCADE Events account (Department of CSE & AI, GHRSTU):
+
+${verifyUrl}
+
+This link expires in 24 hours. If you did not create an account, you can ignore this email.
+
+CASCADE Events
+https://cascade.mozartdev.in`
   try {
     return await sendMail({
       to: user.email,
-      subject: 'Confirm your CASCADE email',
+      subject: 'Confirm your CASCADE Events account',
       text,
-      html: `<p>Hi ${escapeHtml(user.full_name)},</p><p>Confirm this email to finish creating your CASCADE Events account.</p><p><a href="${escapeHtml(verifyUrl)}">Confirm email</a></p><p>This link expires in 24 hours. If you did not sign up, ignore this message.</p><p>— CASCADE Events</p>`,
+      html: `<p>Hi ${escapeHtml(user.full_name)},</p>
+<p>Confirm your CASCADE Events account (Department of CSE &amp; AI, GHRSTU).</p>
+<p><a href="${escapeHtml(verifyUrl)}">Confirm my email</a></p>
+<p style="color:#666;font-size:13px">Or paste this URL into your browser:<br>${escapeHtml(verifyUrl)}</p>
+<p>This link expires in 24 hours. If you did not create an account, ignore this email.</p>
+<p>CASCADE Events<br><a href="https://cascade.mozartdev.in">cascade.mozartdev.in</a></p>`,
     })
   } catch (err) {
     console.error('verification email failed', err.message)
