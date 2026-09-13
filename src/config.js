@@ -20,9 +20,12 @@ export const config = {
   databaseUrl: process.env.DATABASE_URL,
   jwtSecret: String(process.env.JWT_SECRET || '').trim(),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
-  frontendOrigin:
-    process.env.FRONTEND_ORIGIN ||
-    'https://cascade.mozartdev.in,http://localhost:5173,http://127.0.0.1:5173',
+  frontendPublicUrl: (
+    (process.env.FRONTEND_ORIGIN || '')
+      .split(',')
+      .map((s) => s.trim())
+      .find((s) => s.startsWith('https://')) || 'https://cascade.mozartdev.in'
+  ).replace(/\/$/, ''),
   razorpayKeyId: process.env.RAZORPAY_KEY_ID,
   razorpayKeySecret: process.env.RAZORPAY_KEY_SECRET,
   razorpayWebhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET,

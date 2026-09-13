@@ -39,6 +39,21 @@ export async function sendMail({ to, subject, text, html }) {
   return { skipped: false, id: info.messageId }
 }
 
+export async function sendVerificationEmail(user, verifyUrl) {
+  const text = `Hi ${user.full_name},\n\nConfirm this email for CASCADE Events:\n${verifyUrl}\n\nThis link expires in 24 hours. If you did not sign up, ignore this message.\n\n— CASCADE Events`
+  try {
+    return await sendMail({
+      to: user.email,
+      subject: 'Confirm your CASCADE email',
+      text,
+      html: `<p>Hi ${escapeHtml(user.full_name)},</p><p>Confirm this email to finish creating your CASCADE Events account.</p><p><a href="${escapeHtml(verifyUrl)}">Confirm email</a></p><p>This link expires in 24 hours. If you did not sign up, ignore this message.</p><p>— CASCADE Events</p>`,
+    })
+  } catch (err) {
+    console.error('verification email failed', err.message)
+    return { skipped: true, error: err.message }
+  }
+}
+
 export async function sendWelcomeEmail(user) {
   const text = `Hi ${user.full_name},\n\nYour CASCADE account is ready. You can sign in and register for events.\n\n— CASCADE Events`
   try {

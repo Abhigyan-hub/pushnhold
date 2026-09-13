@@ -18,6 +18,7 @@ export function publicUser(row) {
     full_name: row.full_name,
     avatar_url: row.avatar_url,
     role: row.role,
+    email_verified: Boolean(row.email_verified_at),
     created_at: row.created_at,
     updated_at: row.updated_at,
   }
@@ -32,7 +33,7 @@ export async function requireAuth(req, res, next) {
   try {
     const payload = jwt.verify(token, config.jwtSecret)
     const { rows } = await query(
-      'SELECT id, email, full_name, avatar_url, role, created_at, updated_at FROM users WHERE id = $1',
+      'SELECT id, email, full_name, avatar_url, role, email_verified_at, created_at, updated_at FROM users WHERE id = $1',
       [payload.sub]
     )
     if (!rows[0]) {
@@ -53,7 +54,7 @@ export function optionalAuth(req, res, next) {
     if (err || !payload?.sub) return next()
     try {
       const { rows } = await query(
-        'SELECT id, email, full_name, avatar_url, role, created_at, updated_at FROM users WHERE id = $1',
+        'SELECT id, email, full_name, avatar_url, role, email_verified_at, created_at, updated_at FROM users WHERE id = $1',
         [payload.sub]
       )
       req.user = rows[0] || null

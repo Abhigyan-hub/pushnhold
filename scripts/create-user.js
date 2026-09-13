@@ -29,13 +29,16 @@ async function main() {
 
   const password_hash = await bcrypt.hash(password, 12)
   const { rows } = await pool.query(
-    `INSERT INTO users (email, password_hash, full_name, role)
-     VALUES ($1, $2, $3, $4)
+    `INSERT INTO users (email, password_hash, full_name, role, email_verified_at)
+     VALUES ($1, $2, $3, $4, NOW())
      ON CONFLICT (email) DO UPDATE SET
        password_hash = EXCLUDED.password_hash,
        full_name = EXCLUDED.full_name,
-       role = EXCLUDED.role
-     RETURNING id, email, full_name, role`,
+       role = EXCLUDED.role,
+       email_verified_at = NOW(),
+       email_verify_token_hash = NULL,
+       email_verify_expires_at = NULL
+     RETURNING id, email, full_name, role, email_verified_at`,
     [email.trim().toLowerCase(), password_hash, fullName.trim(), role]
   )
   console.log('User ready:', rows[0])
